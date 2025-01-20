@@ -1,6 +1,6 @@
 import scrapy
 import json
-from chronicle.parse_parameters import ARTICLES, VERBOSE
+from chronicle.parse_parameters import ARTICLES, VERBOSE, BULK_TEST
 from chronicle.utils import CleanData, RunTests
 
 class ArticleSpider(scrapy.Spider):
@@ -35,33 +35,46 @@ class ArticleSpider(scrapy.Spider):
                 tag_name = child.root.tag
                 inner_html = child.get()
                 tag_names.append(tag_name)
-                tag_contents.append(json.dumps(inner_html)) # To avoid "" '' issues
+                tag_contents.append(json.dumps(inner_html)) # To avoid "" and '' issues
                 # tag_contents.append(inner_html)
             self.logger.info(f"Extracted tag names: {tag_names}")
             self.logger.info(f"Extracted tag contents: {tag_contents}")
-            for freq in range(1, 8):
-                for off in range(1, 8):
-                    # Clean data
-                    clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
-                    clean.data.update({
-                        "offset": off,
-                        "frequency": freq,
-                        "url": url_processing
-                    })
-                    tests = RunTests(spider=self, data=clean.data)
-                    if tests.report.get('status'):
-                        self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {off}, frequency: {freq}")
-                    else:
-                        if VERBOSE:
-                            self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {off}, frequency: {freq}. DETAILS: {tests.report.get('details')}")
-
+            if BULK_TEST:
+                for freq in range(1, 8):
+                    for off in range(1, 8):
+                        # Clean data
+                        clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
+                        clean.data.update({
+                            "offset": off,
+                            "frequency": freq,
+                            "url": url_processing
+                        })
+                        tests = RunTests(spider=self, data=clean.data)
+                        if tests.report.get('status'):
+                            self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {off}, frequency: {freq}")
+                        else:
+                            if VERBOSE:
+                                self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {off}, frequency: {freq}. DETAILS: {tests.report.get('details')}")
+            else:
+                clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
+                clean.data.update({
+                    "offset": offset,
+                    "frequency": frequency,
+                    "url": url_processing
+                })
+                tests = RunTests(spider=self, data=clean.data)
+                if tests.report.get('status'):
+                    self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {offset}, frequency: {frequency}")
+                else:
+                    if VERBOSE:
+                        self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {offset}, frequency: {frequency}. DETAILS: {tests.report.get('details')}")
             yield {
                 "url": tests.report.get('url'),
                 "status": tests.report.get('status'),
                 "details": tests.report.get('details')
             }
         else:
-            self.logger.warning("No article body found.")
+            self.logger.error("No article body found.")
 
 
 # Used to test authentication through Scrapy Middleware (LoginMiddleware)
