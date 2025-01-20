@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# MacOS specific files
+.DS_Store
+
+# Node.js dependency
+node_modules/
+
+# Python egg metadata
+*.egg-info/
+
+# IDE settings
+.idea/
+.vscode/
+*.iml
+
+# Scrapyd
+.scrapy/
+
+# Output directories
+output/
+export/
+reports/
+
+# Environment variables
+.env
+
+# Compiled Python files, cache
+*.pyc
+
+# Temporary files
+*.bak
+*.swp
+*.swo
+*.tmp
+
+# Coverage reports
+.coverage
+*.coverage
+htmlcov/
+
+# Test results
+*.pytest_cache/
+*.tox/
+.nox/
+.cache/
+test_results/
+
+# Build artifacts
+build/
+dist/
