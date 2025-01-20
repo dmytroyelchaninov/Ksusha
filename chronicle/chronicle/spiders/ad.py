@@ -1,25 +1,29 @@
 import scrapy
 import json
-from chronicle.parse_parameters import ARTICLES
+from chronicle.parse_parameters import ARTICLES, VERBOSE
 from chronicle.utils import CleanData, RunTests
 
 class ArticleSpider(scrapy.Spider):
     name = "article"
 
     def __init__(self, *args, **kwargs):
-        self.url_processing = None
-        self.frequency = None
-        self.offset = None
         super(ArticleSpider, self).__init__(*args, **kwargs)
 
     def start_requests(self):
         for url in ARTICLES.keys():
-            self.url_processing = url
-            self.frequency = ARTICLES[url]["frequency"]
-            self.offset = ARTICLES[url]["offset"]
-            yield scrapy.Request(url, self.parse)
+            frequency = ARTICLES[url]["frequency"]
+            offset = ARTICLES[url]["offset"]
+            yield scrapy.Request(
+                url,
+                self.parse,
+                meta={"url_processing": url, "frequency": frequency, "offset": offset}
+            )
 
     def parse(self, response):
+        url_processing = response.meta["url_processing"]
+        frequency = response.meta["frequency"]
+        offset = response.meta["offset"]
+
         article_body = response.css("div.RichTextArticleBody-body.RichTextBody")
 
         if article_body:
@@ -35,19 +39,22 @@ class ArticleSpider(scrapy.Spider):
                 # tag_contents.append(inner_html)
             self.logger.info(f"Extracted tag names: {tag_names}")
             self.logger.info(f"Extracted tag contents: {tag_contents}")
+            for freq in range(1, 8):
+                for off in range(1, 8):
+                    # Clean data
+                    clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
+                    clean.data.update({
+                        "offset": off,
+                        "frequency": freq,
+                        "url": url_processing
+                    })
+                    tests = RunTests(spider=self, data=clean.data)
+                    if tests.report.get('status'):
+                        self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {off}, frequency: {freq}")
+                    else:
+                        if VERBOSE:
+                            self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {off}, frequency: {freq}. DETAILS: {tests.report.get('details')}")
 
-            # Clean data
-            clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
-            clean.data.update({
-                "offset": self.offset,
-                "frequency": self.frequency,
-                "url": self.url_processing
-            })
-            tests = RunTests(spider=self, data=clean.data)
-            if tests.report.get('status'):
-                self.logger.warning(f"ALL TESTS PASSED. URL: {self.url_processing}, offset: {self.offset}, frequency: {self.frequency}")
-            else:
-                self.logger.critical(f"TESTS FAILED. URL: {self.url_processing}, OFFSET: {self.offset}, FREQUENCY: {self.frequency}. DETAILS: {tests.report.get('details')}")
             yield {
                 "url": tests.report.get('url'),
                 "status": tests.report.get('status'),
