@@ -1,6 +1,6 @@
 ### TO TEST ADS:
 
-1. Install scrapy, selenium dependancies
+1. Install scrapy, selenium dependancies: pip install scrapy selenium webdriver-manager python-dotenv
 2. INSTALL CHROME!
    Scrapy through selenium will launch chrome browser to login and store cookies for subsequent requests.
 3. Update ARTICLES to parse in parse_parameters.py.
