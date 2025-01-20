@@ -1,3 +1,4 @@
+from chronicle.parse_parameters import VERBOSE, DEFAULT_LOGS_DISABLED
 # Scrapy settings for chronicle project
 #
 # For simplicity, this file contains only settings considered important or
@@ -44,15 +45,17 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
-#    "chronicle.middlewares.ChronicleSpiderMiddleware": 543,
-#}
+SPIDER_MIDDLEWARES = {
+    "chronicle.middlewares.LoggingMiddleware": 3,
+    "chronicle.middlewares.ChronicleSpiderMiddleware": 543,
+}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-   "chronicle.middlewares.LoginMiddleware": 543,
-   "scrapy.downloadermiddlewares.cookies.CookiesMiddleware": 700,
+    "chronicle.middlewares.LoggingMiddleware": 3,
+    "chronicle.middlewares.LoginMiddleware": 600,
+    "scrapy.downloadermiddlewares.cookies.CookiesMiddleware": 700,
 }
 
 # Enable or disable extensions
@@ -92,8 +95,13 @@ DOWNLOADER_MIDDLEWARES = {
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
 
+
+DEFAULT_LOGS_DISABLED = DEFAULT_LOGS_DISABLED
 LOG_ENABLED = True
-LOG_LEVEL = "DEBUG"
+if VERBOSE:
+    LOG_LEVEL = "INFO"
+else:
+    LOG_LEVEL = "WARNING"
 LOG_FILE = "ad.log"
 LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 LOG_DATEFORMAT = "%Y-%m-%d %H:%M:%S"

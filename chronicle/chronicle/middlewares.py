@@ -7,9 +7,30 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
+from scrapy import signals
+from chronicle.logger import LogFilter
+import logging
 import os 
 from dotenv import load_dotenv
 load_dotenv()
+
+
+# Note: all credentials must be stored in .env file (environment variables), same level as this file
+# Otherwise, your credentials will be exposed in the codebase
+class LoggingMiddleware:
+    @classmethod
+    def from_crawler(cls, crawler):
+        instance = cls()
+        is_disabled = crawler.settings.getbool('DEFAULT_LOGS_DISABLED', True)
+        log_filter = LogFilter(is_disabled)
+
+        logging.getLogger().addFilter(log_filter)
+        crawler.signals.connect(instance.spider_opened, signal=scrapy.signals.spider_opened)
+
+        return instance
+
+    def spider_opened(self, spider):
+        spider.logger.info("Logging filter applied")
 
 
 class LoginMiddleware:
@@ -76,7 +97,6 @@ class LoginMiddleware:
             self.cookies = self.driver.get_cookies()
         else:
             raise Exception("Login failed")
-
 
 
 # Some default middlewares from request/response handling, i will keep them default, but they are very useful tho
