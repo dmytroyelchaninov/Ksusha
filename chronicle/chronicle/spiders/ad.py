@@ -59,7 +59,6 @@ class ArticleSpider(scrapy.Spider):
         #     self.logger.info(f"Extracted tag names: {tag_names}")
         #     self.logger.info(f"Extracted tag contents: {tag_contents}")
             
-
             if BULK_TEST:
                 for freq in range(1, 8):
                     for off in range(1, 8):
@@ -85,10 +84,10 @@ class ArticleSpider(scrapy.Spider):
                 })
                 tests = RunTests(spider=self, data=clean.data)
                 if tests.report.get('status'):
-                    self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {offset}, frequency: {frequency}")
+                    self.logger.warning(f"TEST PASSED. URL: {url_processing}, offset: {offset}, frequency: {frequency}")
                 else:
                     if VERBOSE:
-                        self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {offset}, frequency: {frequency}. DETAILS: {tests.report.get('details')}")
+                        self.logger.critical(f"TEST FAILED. URL: {url_processing}, offset: {offset}, frequency: {frequency}. DETAILS: {tests.report.get('details')}")
             yield {
                 "url": tests.report.get('url'),
                 "status": tests.report.get('status'),
