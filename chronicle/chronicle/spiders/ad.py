@@ -24,8 +24,8 @@ class ArticleSpider(scrapy.Spider):
         frequency = response.meta["frequency"]
         offset = response.meta["offset"]
 
+        # This is how you can extract tag names and contents using Scrapy
         article_body = response.css("div.RichTextArticleBody-body.RichTextBody")
-
         if article_body:
             children = article_body.xpath("./*")
             tag_names = []
@@ -36,9 +36,30 @@ class ArticleSpider(scrapy.Spider):
                 inner_html = child.get()
                 tag_names.append(tag_name)
                 tag_contents.append(json.dumps(inner_html)) # To avoid "" and '' issues
-                # tag_contents.append(inner_html)
+        
             self.logger.info(f"Extracted tag names: {tag_names}")
             self.logger.info(f"Extracted tag contents: {tag_contents}")
+
+        # # Alternatively, you can use BeautifulSoup to extract tag names and contents. 
+        # from bs4 import BeautifulSoup
+        # soup = BeautifulSoup(response.text, "html.parser")
+        # article_body = soup.select_one("div.RichTextArticleBody-body.RichTextBody")
+
+        # if article_body:
+        #     children = article_body.find_all(recursive=False)
+        #     tag_names = []
+        #     tag_contents = []
+
+        #     for child in children:
+        #         tag_name = child.name
+        #         inner_html = str(child)
+        #         tag_names.append(tag_name)
+        #         tag_contents.append(json.dumps(inner_html))  # To avoid "" and '' issues
+
+        #     self.logger.info(f"Extracted tag names: {tag_names}")
+        #     self.logger.info(f"Extracted tag contents: {tag_contents}")
+            
+
             if BULK_TEST:
                 for freq in range(1, 8):
                     for off in range(1, 8):
