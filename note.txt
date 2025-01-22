@@ -1,0 +1,9 @@
+The way the code works is that when i hit a paragraph that decrements the count to zero, we then switch to the next paragraph. In this case its a short paragraph under out text limit. and then insert before it if it matches the rules which are:
+
+the current element is a paragraph and it is not empty
+the previous element is a p tag
+the next element is not null (it is the last paragraph)
+the previous().previous() is not null and starts with a tag name of bsp- (the other modules), and it doesn't contain an attribute of align-right or align-left
+The inside nodes aren't a <b> tag with a heading (h1/h2/h3/h4/h5/h6) inside of the bold tag.
+
+With these rules, we currently do not care about the length of the current paragraph as long as it is containing something, because we are not technically counting it until later in the code of the loop.

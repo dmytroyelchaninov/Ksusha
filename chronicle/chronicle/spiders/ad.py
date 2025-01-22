@@ -1,7 +1,7 @@
 import scrapy
 import json
-from chronicle.parse_parameters import ARTICLES, VERBOSE, BULK_TEST
-from chronicle.utils import CleanData, RunTests
+from chronicle.parse_parameters import ARTICLES
+from chronicle.utils import clean_data_and_run_tests
 
 class ArticleSpider(scrapy.Spider):
     name = "article"
@@ -11,91 +11,30 @@ class ArticleSpider(scrapy.Spider):
 
     def start_requests(self):
         for url in ARTICLES.keys():
-            frequency = ARTICLES[url]["frequency"]
-            offset = ARTICLES[url]["offset"]
             yield scrapy.Request(
                 url,
                 self.parse,
-                meta={"url_processing": url, "frequency": frequency, "offset": offset}
             )
 
     def parse(self, response):
-        url_processing = response.meta["url_processing"]
-        frequency = response.meta["frequency"]
-        offset = response.meta["offset"]
-
-        # This is how you can extract tag names and contents using Scrapy
-        article_body = response.css("div.RichTextArticleBody-body.RichTextBody")
-        if article_body:
-            children = article_body.xpath("./*")
-            tag_names = []
-            tag_contents = []
-
-            for child in children:
-                tag_name = child.root.tag
-                inner_html = child.get()
-                tag_names.append(tag_name)
-                tag_contents.append(json.dumps(inner_html)) # To avoid "" and '' issues
-        
-            self.logger.info(f"Extracted tag names: {tag_names}")
-            self.logger.info(f"Extracted tag contents: {tag_contents}")
-
-        # # Alternatively, you can use BeautifulSoup to extract tag names and contents. 
-        # from bs4 import BeautifulSoup
-        # soup = BeautifulSoup(response.text, "html.parser")
-        # article_body = soup.select_one("div.RichTextArticleBody-body.RichTextBody")
-
-        # if article_body:
-        #     children = article_body.find_all(recursive=False)
-        #     tag_names = []
-        #     tag_contents = []
-
-        #     for child in children:
-        #         tag_name = child.name
-        #         inner_html = str(child)
-        #         tag_names.append(tag_name)
-        #         tag_contents.append(json.dumps(inner_html))  # To avoid "" and '' issues
-
-        #     self.logger.info(f"Extracted tag names: {tag_names}")
-        #     self.logger.info(f"Extracted tag contents: {tag_contents}")
-            
-            if BULK_TEST:
-                for freq in range(1, 8):
-                    for off in range(1, 8):
-                        # Clean data
-                        clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
-                        clean.data.update({
-                            "offset": off,
-                            "frequency": freq,
-                            "url": url_processing
-                        })
-                        tests = RunTests(spider=self, data=clean.data)
-                        if tests.report.get('status'):
-                            self.logger.warning(f"ALL TESTS PASSED. URL: {url_processing}, offset: {off}, frequency: {freq}")
-                        else:
-                            if VERBOSE:
-                                self.logger.critical(f"TESTS FAILED. URL: {url_processing}, offset: {off}, frequency: {freq}. DETAILS: {tests.report.get('details')}")
-            else:
-                clean = CleanData(spider=self, tags=tag_names, htmls=tag_contents)
-                clean.data.update({
-                    "offset": offset,
-                    "frequency": frequency,
-                    "url": url_processing
-                })
-                tests = RunTests(spider=self, data=clean.data)
-                if tests.report.get('status'):
-                    self.logger.warning(f"TEST PASSED. URL: {url_processing}, offset: {offset}, frequency: {frequency}")
-                else:
-                    if VERBOSE:
-                        self.logger.critical(f"TEST FAILED. URL: {url_processing}, offset: {offset}, frequency: {frequency}. DETAILS: {tests.report.get('details')}")
-            yield {
-                "url": tests.report.get('url'),
-                "status": tests.report.get('status'),
-                "details": tests.report.get('details')
-            }
+        url = response.url
+        article = response.css("div.RichTextArticleBody-body.RichTextBody")
+        if article:
+            try:
+                for element in article.xpath("./*"):
+                    tag_name = element.root.tag
+                    tag_text = element.get()
+                    tag_content = json.dumps(element.get())
+                    # print(f"Tag Name: {tag_name}")
+                    # print(f"Tag Text: {tag_text}")
+                    # print(f"Tag Content: {tag_content}")
+                    # print("\n")
+                tests = clean_data_and_run_tests(self, url, article)
+            except Exception as e:
+                self.logger.critical(f"UNEXPECTED ERROR: {e}")
         else:
-            self.logger.error("No article body found.")
-
+            self.logger.error(f"No Article found at {url}")
+        yield None       
 
 # Used to test authentication through Scrapy Middleware (LoginMiddleware)
 class TestAuthSpider(scrapy.Spider):
@@ -113,3 +52,29 @@ class TestAuthSpider(scrapy.Spider):
         else:
             self.logger.warning("No title found. Auth might have failed.")
 
+
+
+
+
+
+
+
+
+# # Alternatively, you can use BeautifulSoup to extract tag names and contents. Put it in parse method instead.
+# from bs4 import BeautifulSoup
+# soup = BeautifulSoup(response.text, "html.parser")
+# article_body = soup.select_one("div.RichTextArticleBody-body.RichTextBody")
+
+# if article_body:
+#     children = article_body.find_all(recursive=False)
+#     tag_names = []
+#     tag_contents = []
+
+#     for child in children:
+#         tag_name = child.name
+#         inner_html = str(child)
+#         tag_names.append(tag_name)
+#         tag_contents.append(json.dumps(inner_html))  # To avoid "" and '' issues
+
+#     self.logger.info(f"Extracted tag names: {tag_names}")
+#     self.logger.info(f"Extracted tag contents: {tag_contents}")

@@ -59,8 +59,8 @@ class LoginMiddleware:
             try:
                 self.login_user(spider)
             except Exception as e:
-                spider.logger.error(f"Login failed: {e}")
-                raise CloseSpider("Login failed")
+                spider.logger.critical(f"Login failed: {e}")
+                raise CloseSpider("LOGIN FAILED")
             finally:
                 self.stop_driver()
         return None
@@ -72,7 +72,7 @@ class LoginMiddleware:
         sign_in_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[text()='Sign In']")))
         sign_in_button.click()
         
-        time.sleep(1.5) # CRUCIAL: Wait for the login modal to appear
+        time.sleep(2) # CRUCIAL: Wait for the login modal to appear
 
         email_input = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="1-email"]')))
         password_input = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="1-password"]')))
@@ -96,7 +96,7 @@ class LoginMiddleware:
             self.logged_in = True
             self.cookies = self.driver.get_cookies()
         else:
-            raise Exception("Login failed")
+            raise CloseSpider("Login failed")
 
 
 # Some default middlewares from request/response handling, i will keep them default, but they are very useful tho
