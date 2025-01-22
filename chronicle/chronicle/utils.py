@@ -28,14 +28,14 @@ class CleanData():
             if tag.root.tag in header_tags:
                 headers_num += 1
                 tag.root.tag = 'h'
-                print(f'Header {tag.root.tag} found and tag replaced with <h>')
+                # print(f'Header {tag.root.tag} found and tag replaced with <h>')
                 self.spider.logger.info(f'Header {tag.root.tag} found and tag replaced with <h>')
             else:
                 content = json.dumps(tag.get())
                 if any(f"<{header_tag}" in content for header_tag in header_tags):
                     headers_num += 1
                     tag.root.tag = 'h'
-                    print(f'Nested header found in: {content}. Tag replaced with <h>')
+                    # print(f'Nested header found in: {content}. Tag replaced with <h>')
                     self.spider.logger.info(f'Nested header found in: {content}. Tag replaced with <h>')
 
         self.spider.logger.info(f'{headers_num} headings replaced with <h> tags.')
@@ -243,7 +243,7 @@ class RunTests():
                         self.spider.logger.info(f'After avoidable tag: {group[next_index]}')
                         while group[next_index] not in self.paragraph_tags:
                             if group[next_index] == 'ad': 
-                                raise ValueError(f'Ad injection after avoidable tag') # this likely won't happen, 'ad's were already checked for neighbours
+                                raise ValueError(f'Ad injection after avoidable tag') # this likely won't happen, ad's were already checked for neighbours
                             next_index += 1
                             self.spider.logger.info(f'Looking for p tag after avoidable tag: {group[next_index]}')
                     else:

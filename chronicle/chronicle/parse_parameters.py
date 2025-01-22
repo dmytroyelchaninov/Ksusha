@@ -15,7 +15,7 @@ ARTICLES = {
     },
 }
 
-VERBOSE = False
+VERBOSE = True
 BULK_TEST = False
 
 DEFAULT_LOGS_DISABLED = True
