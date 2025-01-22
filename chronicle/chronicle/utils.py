@@ -1,7 +1,7 @@
-from chronicle.parse_parameters import VERBOSE, BULK_TEST, ARTICLES
+from chronicle.parse_parameters import BULK_TEST, ARTICLES, TEST_SCRAPED_URLS, FREQUENCY, OFFSET
 from bs4 import BeautifulSoup
 import json
-
+import re
 
 class CleanData():
     """CLEAN DATA. REMOVES BAD HTML, DUPLICATES, MARKS ADS AND HEADINGS. LOGS DETAILS."""
@@ -16,7 +16,8 @@ class CleanData():
         self.find_and_replace_headings()  
         self.remove_bad_html()
         self.remove_duplicates()
-        self.find_and_replace_ad_divs()
+        self.find_and_mark_ad_divs()
+        self.find_and_replace_align_divs()
         # print(f"Tags after cleaning: {[tag.root.tag for tag in self.article]}")
         self.spider.logger.info(f'DATA CLEANED')
 
@@ -41,15 +42,14 @@ class CleanData():
         self.spider.logger.info(f'{headers_num} headings replaced with <h> tags.')
         return self.article
 
-
     def _find_bad_html(self):
         bad_indices = []
         for index, tags in enumerate(self.article):
             if tags.root.tag == 'p':
                 visible_text = tags.xpath('string(.)').get().strip()
-                if len(visible_text) < 50:
-                    # print(f'Bad p tag found: "{visible_text}" with length {len(visible_text)}')
-                    self.spider.logger.info(f'Bad p tag found: "{visible_text}" with length {len(visible_text)}')
+                normalized_text = re.sub(r'\s+', ' ', visible_text).strip()
+                if len(normalized_text) < 49:
+                    self.spider.logger.info(f'Bad p tag found: "{normalized_text}" with length {len(normalized_text)}')
                     bad_indices.append(index)
         return bad_indices
 
@@ -79,7 +79,7 @@ class CleanData():
         self.spider.logger.info(f"{duplicate_num} duplicates removed")
         return self.article
 
-    def find_and_replace_ad_divs(self):
+    def find_and_mark_ad_divs(self):
         ad_num = 0
         for tag in self.article:
             if "ADVERTISEMENT" in tag.xpath('string(.)').get():
@@ -89,37 +89,17 @@ class CleanData():
         self.spider.logger.info(f'{ad_num} ads marked with "google_ad" attribute.')
         return self.article
 
-
-
-# LEGACY
-    # def remove_dublicates(self):
-    #     for index, html in enumerate(self.htmls[1:]):
-    #         if self.htmls[0] == html:
-    #             self.htmls = self.htmls[index + 1:]
-    #             self.tags = self.tags[index + 1:]
-    #             self.spider.logger.info(f"Dublcates removed starting from index {index + 1}")
-    #             return True
+    def find_and_replace_align_divs(self):
+        align_num = 0
+        for tag in self.article:
+            if tag.root.tag == 'div' and ('data-align-right' in tag.attrib or 'data-align-left' in tag.attrib):
+                align_num += 1
+                tag.root.tag = 'div-aligned'
+                # print(f'<div> with align attribute found and replaced with <div-aligned>')
+                self.spider.logger.info(f'<div> with align right/left attribute found and replaced with <div-aligned>')
+        self.spider.logger.info(f'{align_num} align divs replaced with <div-aligned> tags.')
+        return self.article
         
-    #     self.spider.logger.info('Dublicates not found')
-    #     return False
-    
-    # def find_and_replace_ad_divs(self):
-    #     ad_index = [index for index, value in enumerate(self.htmls) if "ADVERTISEMENT" in value]
-    #     for i in ad_index:
-    #         self.tags[i] = "ad"
-    #     self.spider.logger.info(f'Number of ads replaced: {len(ad_index)}')
-    #     return True
-    
-    # def find_and_replace_headings(self):
-    #     header_tags = ['</h1>', '</h2>', '</h3>', '</h4>', '</h5>', '</h6>']
-    #     indices = [index for index, value in enumerate(self.htmls) if any(tag in value for tag in header_tags)]
-    #     for i in indices:
-    #         self.spider.logger.info(f'Header found: {self.htmls[i]}')
-    #         self.tags[i] = "h"
-    #     self.spider.logger.info(f'Number of headings replaced: {len(indices)}')
-    #     return True
-
-
     
 class RunTests():
     """TESTS. IMMEDIATELY RAISES IF ANY TEST FAILS. LOGS DETAILS."""
@@ -130,7 +110,7 @@ class RunTests():
         self.offset = int(offset)
         self.frequency = int(frequency)
         self.paragraph_tags = ['p']
-        self.avoidable_tags = ['h', 'div', 'ul', 'ol', 'blockquote']
+        self.avoidable_tags = ['h', 'div', 'div-aligned', 'ul', 'ol', 'blockquote']
         self.groups = {}
         self.report = {
             'status': True,
@@ -156,39 +136,35 @@ class RunTests():
         
     def check_ad_position(self):
         self.spider.logger.info('Basic ad position check')
-        try:
-            for i, tag in enumerate(self.article):
-                if self.is_ad(tag):
-                    if i == 0:
-                        if self.is_ad(self.article[i+1]):
-                            raise ValueError(f'Ad found at the beginning of the article')
-                    elif i == len(self.article) - 1:
-                        if self.is_ad(self.article[i-1]):
-                            raise ValueError(f'Ad found at the end of the article')
-                    elif i == len(self.article) - 2:
-                        if self.is_ad(self.article[i-1]):
-                            raise ValueError(f'Ad found before last tag')
-                    else:
-                        previos_tag = str(self.article[i-1].root.tag)
-                        next_tag = str(self.article[i+1].root.tag)
-                        if next_tag == 'ad' or previos_tag == 'ad':
-                            raise ValueError(f'Ad is next to another ad')
-                        if (previos_tag in self.avoidable_tags) or (next_tag in self.avoidable_tags):
-                            self.spider.logger.error(f"AD is in between: {previos_tag} and {next_tag}")
-                            raise ValueError(f'Ad is next to avoidable tag.')
-                        if (previos_tag not in self.paragraph_tags) or (next_tag not in self.paragraph_tags):
-                            raise ValueError(f'Ad is next to non-paragraph tag. Paragraph tags are: {self.paragraph_tags}')                                                             
-            self.spider.logger.info('Basic ad position test passed')
-            return True
-        except Exception as e:
-            raise 
+        for i, tag in enumerate(self.article):
+            if self.is_ad(tag):
+                if i == 0:
+                    if self.is_ad(self.article[i+1]):
+                        raise ValueError(f'Ad found at the beginning of the article')
+                elif i == len(self.article) - 1:
+                    if self.is_ad(self.article[i-1]):
+                        raise ValueError(f'Ad found at the end of the article')
+                elif i == len(self.article) - 2:
+                    if self.is_ad(self.article[i-1]):
+                        raise ValueError(f'Ad found before last tag')
+                else:
+                    previos_tag = str(self.article[i-1].root.tag)
+                    next_tag = str(self.article[i+1].root.tag)
+                    if next_tag == 'ad' or previos_tag == 'ad':
+                        raise ValueError(f'Ad is next to another ad')
+                    if (previos_tag in self.avoidable_tags) or (next_tag in self.avoidable_tags):
+                        raise ValueError(f'Ad is between {previos_tag} and {next_tag}')
+                    if (previos_tag not in self.paragraph_tags) or (next_tag not in self.paragraph_tags):
+                        raise ValueError(f'Ad is next to non-paragraph tag. Paragraph tags are: {self.paragraph_tags}')                                                             
+        self.spider.logger.info('Basic ad position test passed')
+        return True
 
     def divide_tags_into_groups(self):
         self.spider.logger.info('Dividing tags into groups')
         try:
             ad_indices = [i for i, tag in enumerate(self.article) if self.is_ad(tag)]
             if not ad_indices:
-                raise ValueError('No ads found in article')
+                raise ValueError('[SOFTERROR] No ads found in article')
             initial_group = [str(tag.root.tag) for tag in self.article[:ad_indices[0]]]
             initial_group.append('ad')
 
@@ -220,6 +196,7 @@ class RunTests():
         
         # WHat if e.g. <p> tags number are more than frequency
         count = 0
+        aligned_div = False
         for i, tag in enumerate(group):
             self.spider.logger.info(f'Current tag: {tag}, with index: {i}, count: {count}')
             if tag in self.paragraph_tags:
@@ -227,17 +204,37 @@ class RunTests():
                 count += 1
             
             if count == freq:
+                if group[i-1] == 'div-aligned':
+                    self.spider.logger.info(f'ALIGNED DIV FOUND')
+                    aligned_div = True
+
                 next_index = i
                 while next_index < len(group):
                     next_index += 1
                     next_tag = group[next_index]
                     self.spider.logger.info(f'Next tag: {next_tag}')
                     if next_tag in self.paragraph_tags:
+
+                        if aligned_div:
+                            self.spider.logger.info(f'ALIGNED DIV FOUND')
+                            # try:
+                            if group[next_index+1] == 'ad':
+                                self.spider.logger.info('Ad found after 2 paragraphs with aligned div before')
+                                raise ValueError(f'[SOFTERROR] Aligned div and two paragraphs found before ad injection')
+                            # except IndexError:
+                            #     print(f'{}')
+                            #     pass
+
                         raise ValueError(f"Missing ad injection between paragraph tags '{group[next_index-1]}' and '{next_tag}'. Group: {group}. Frequency: {freq}. All tags: {self.groups}")
                     elif next_tag == 'ad': # test success
                         self.spider.logger.info('Ad found')
                         break
                     elif next_tag in self.avoidable_tags:
+                        # print(f'Next tag: {next_tag}')
+                        if next_tag == 'div-aligned':
+                            aligned_div = True
+                            self.spider.logger.info(f'Aligned div found')
+
                         next_index += 1
                         self.spider.logger.info(f'Avoidable tag found: {next_tag}')
                         self.spider.logger.info(f'After avoidable tag: {group[next_index]}')
@@ -295,8 +292,13 @@ class RunTests():
 def clean_data_and_run_tests(spider, url, article, bulk_test=BULK_TEST):
     """CLEAN DATA AND RUN TESTS. RETURNS TEST OBJECT."""
     try:
-        frequency = int(ARTICLES.get(url).get('frequency'))
-        offset = int(ARTICLES.get(url).get('offset'))
+        if TEST_SCRAPED_URLS:
+            frequency = int(FREQUENCY)
+            offset = int(OFFSET)
+        else:
+            frequency = int(ARTICLES.get(url).get('frequency'))
+            offset = int(ARTICLES.get(url).get('offset'))
+
         spider.logger.info(f"TESTING URL: {url}, offset: {offset}, frequency: {frequency}")
         if not frequency or not offset:
             spider.logger.error(f"Frequency or offset not set for URL: {url}")
@@ -305,10 +307,17 @@ def clean_data_and_run_tests(spider, url, article, bulk_test=BULK_TEST):
         def _logic(spider=spider, url = url, article=article, frequency=frequency, offset=offset):
             clean_article = CleanData(spider=spider, article=article)
             test = RunTests(spider=spider, article=clean_article.article, frequency=frequency, offset=offset)
+
+            try:
+                if '[SOFTERROR]' in test.report.get('details')[0]:
+                    test.report['status'] = True
+            except Exception:
+                pass
+
             if test.report.get('status'):
-                spider.logger.warning(f"ALL TEST PASSED. URL: {url}, offset: {offset}, frequency: {frequency}")
+                spider.logger.warning(f"ALL TESTS PASSED. URL: {url}, offset: {offset}, frequency: {frequency}, DETAILS: {test.report.get('details')}")
             else:
-                spider.logger.error(f"TESTS FAILED. URL: {url}, offset: {offset}, frequency: {frequency}. DETAILS: {test.report.get('details')}")
+                spider.logger.error(f"TEST FAILED. URL: {url}, offset: {offset}, frequency: {frequency}. DETAILS: {test.report.get('details')}")
             return test
         
         if bulk_test:

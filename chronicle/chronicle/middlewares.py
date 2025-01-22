@@ -26,7 +26,6 @@ class LoggingMiddleware:
 
         logging.getLogger().addFilter(log_filter)
         crawler.signals.connect(instance.spider_opened, signal=scrapy.signals.spider_opened)
-
         return instance
 
     def spider_opened(self, spider):
