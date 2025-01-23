@@ -64,4 +64,5 @@ build/
 dist/
 
 test.ipynb
-articles.json
+articles_latest.json
+articles_legacy.json
