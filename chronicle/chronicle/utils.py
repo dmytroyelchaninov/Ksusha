@@ -26,6 +26,8 @@ class CleanData():
         headers_num = 0
 
         for tag in self.article:
+            if tag.root.tag == 'div' or tag.xpath('string(.)').get().strip() == '':
+                continue
             if tag.root.tag in header_tags:
                 headers_num += 1
                 tag.root.tag = 'h'

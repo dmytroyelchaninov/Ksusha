@@ -6,8 +6,8 @@ from chronicle.utils import clean_data_and_run_tests
 # Parses through the https://qa.brightspot.chronicle.com/article/ to find articles urls, 
 # pushes 'load more' button MAX_PAGES_TO_LOAD times
 # writes the urls to articles.json
-class ArticleHunterSpider(scrapy.Spider):
-    name = "article-hunter"
+class ArticleLatestSpider(scrapy.Spider):
+    name = "article-latest"
     allowed_domains = ["qa.brightspot.chronicle.com"]
     start_urls = ["https://qa.brightspot.chronicle.com/article/"]
 
@@ -22,7 +22,7 @@ class ArticleHunterSpider(scrapy.Spider):
         self.max_pages = MAX_PAGES_TO_LOAD
 
     def start_requests(self):
-        self.logger.warning(f"{'='*50} STARTING SCRAPPING URLS {'='*50}")
+        self.logger.warning(f"{'='*50} STARTING SCRAPPING URLS FROM LATEST {'='*50}")
         # launch default start_urls
         for url in self.start_urls:
             yield scrapy.Request(
@@ -53,11 +53,55 @@ class ArticleHunterSpider(scrapy.Spider):
             self.logger.info(f"Article found and added: {response.url}")
 
     def closed(self, reason):
-        with open("articles.json", "w", encoding="utf-8") as f:
+        with open("articles_latest.json", "w", encoding="utf-8") as f:
             json.dump(self.articles, f, ensure_ascii=False, indent=4)
-        self.logger.info(f"Saved articles to articles.json")
+        self.logger.info(f"Saved articles to articles_latest.json")
 
-# Main spider that scrapes the articles and runs the tests
+
+class ArticleSearchSpider(scrapy.Spider):
+    name = "article-search"
+    allowed_domains = ["qa.brightspot.chronicle.com"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start_urls = [
+            f"https://qa.brightspot.chronicle.com/search-legacy/?p={page}"
+            for page in range(1, MAX_PAGES_TO_LOAD)
+        ]
+        self.articles = {}
+
+    custom_settings = {
+        "FEED_EXPORT_ENCODING": "utf-8",
+    }
+
+    def start_requests(self):
+        self.logger.warning(f"{'='*50} STARTING SCRAPING FROM SEARCH {'='*50}")
+        for url in self.start_urls:
+            yield scrapy.Request(
+                url,
+                self.parse,
+            )
+
+    def parse(self, response):
+        article_cards = response.css("div.SearchResultsModule-results div.PromoSearchResult")
+        for card in article_cards:
+            article_url = card.css("div.PromoSearchResult-title a::attr(href)").get()
+            if article_url:
+                yield scrapy.Request(url=article_url, callback=self.parse_article)
+
+    def parse_article(self, response):
+        if response.css("div.RichTextArticleBody-body.RichTextBody"):
+            self.articles[response.url] = {}
+            self.logger.info(f"Article found and added: {response.url}")
+        else:
+            self.logger.warning(f"No article content found at: {response.url}")
+
+    def closed(self, reason):
+        with open("articles_legacy.json", "w", encoding="utf-8") as f:
+            json.dump(self.articles, f, ensure_ascii=False, indent=4)
+        self.logger.info(f"Saved articles to articles_legacy.json")
+
+
 class ArticleSpider(scrapy.Spider):
     name = "article"
 
@@ -109,14 +153,4 @@ class TestAuthSpider(scrapy.Spider):
 
 
 
-
-
-# for element in article.xpath("./*"):
-    # tag_name = element.root.tag
-    # tag_text = element.get()
-    # tag_content = json.dumps(element.get())
-    # print(f"Tag Name: {tag_name}")
-    # print(f"Tag Text: {tag_text}")
-    # print(f"Tag Content: {tag_content}")
-    # print("\n")
 
