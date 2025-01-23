@@ -1,6 +1,6 @@
 import scrapy
 import json
-from chronicle.parse_parameters import ARTICLES, MAX_PAGES_TO_LOAD, TEST_SCRAPED_URLS
+from chronicle.parse_parameters import ARTICLES, MAX_PAGES_TO_LOAD, LATEST, SEARCH
 from chronicle.utils import clean_data_and_run_tests
 
 # Parses through the https://qa.brightspot.chronicle.com/article/ to find articles urls, 
@@ -110,8 +110,11 @@ class ArticleSpider(scrapy.Spider):
 
     def start_requests(self):
         self.logger.warning(f"{'='*50} STARTING TESTS {'='*50}")
-        if TEST_SCRAPED_URLS:
-            with open("articles.json", "r", encoding="utf-8") as f:
+        if SEARCH:
+            with open("articles_legacy.json", "r", encoding="utf-8") as f:
+                articles = json.load(f).keys()
+        elif LATEST:
+            with open("articles_latest.json", "r", encoding="utf-8") as f:
                 articles = json.load(f).keys()
         else:
             articles = ARTICLES.keys()

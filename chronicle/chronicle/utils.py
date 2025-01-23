@@ -1,4 +1,4 @@
-from chronicle.parse_parameters import BULK_TEST, ARTICLES, TEST_SCRAPED_URLS, FREQUENCY, OFFSET
+from chronicle.parse_parameters import BULK_TEST, ARTICLES, FREQUENCY, OFFSET, SEARCH, LATEST
 from bs4 import BeautifulSoup
 import json
 import re
@@ -290,11 +290,10 @@ class RunTests():
         except Exception as e:
             raise
 
-    
 def clean_data_and_run_tests(spider, url, article, bulk_test=BULK_TEST):
     """CLEAN DATA AND RUN TESTS. RETURNS TEST OBJECT."""
     try:
-        if TEST_SCRAPED_URLS:
+        if SEARCH or LATEST:
             frequency = int(FREQUENCY)
             offset = int(OFFSET)
         else:
